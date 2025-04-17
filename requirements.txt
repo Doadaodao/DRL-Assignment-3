@@ -1,5 +1,8 @@
 torch
 torchvision
+tensordict
+torchrl
+packaging
 requests
 argparse
 numpy==1.23.5
