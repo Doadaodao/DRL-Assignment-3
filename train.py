@@ -409,7 +409,7 @@ if __name__ == "__main__":
             action = mario.act(state)
 
             # Agent performs action
-            next_state, reward, done, trunc, info = env.step(action)
+            next_state, reward, done, info = env.step(action)
 
             # Remember
             mario.cache(state, next_state, action, reward, done)
