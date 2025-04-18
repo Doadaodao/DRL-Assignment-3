@@ -150,6 +150,9 @@ class MarioAgent:
         self.learn_every = 3  # no. of experiences between updates to Q_online
         self.sync_every = 1e4  # no. of experiences between Q_target & Q_online sync
 
+        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.00025)
+        self.loss_fn = torch.nn.SmoothL1Loss()
+
     def act(self, state):
         """
     Given a state, choose an epsilon-greedy action and update value of step.
@@ -397,13 +400,15 @@ if __name__ == "__main__":
 
     logger = MetricLogger(save_dir)
 
-    episodes = 40
+    max_step = 5000
+
+    episodes = 400000
     for e in range(episodes):
 
         state = env.reset()
 
         # Play the game!
-        while True:
+        for step in range(max_step):
 
             # Run agent on the state
             action = mario.act(state)
