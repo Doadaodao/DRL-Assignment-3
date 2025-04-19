@@ -88,7 +88,7 @@ def main():
     env = JoypadSpace(env, COMPLEX_MOVEMENT)
     env = SkipFrame(env, skip=4)
 
-    agent = Agent(checkpoint_dir="checkpoints")
+    agent = Agent()
 
     obs = env.reset()   # this is raw RGB now
     done = False
