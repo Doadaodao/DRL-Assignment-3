@@ -30,6 +30,7 @@ jobs:
     
     - name: Download from Google Drive
       run: |
+        pip install gdown
         gdown --fuzzy 'https://drive.google.com/file/d/1qhi-LE6gdt4529n4aOu8C88kgDx2TvV_/view?usp=sharing'
 
     - name: 3. Ensure env.so is executable
