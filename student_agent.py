@@ -15,47 +15,49 @@ class Agent(object):
     """Agent that loads a trained DQN and returns the argmax action."""
     def __init__(self):
         self.action_space = gym.spaces.Discrete(12)
-        # pick device
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # build network
         self.net = MarioNet(input_dim=(4, 84, 84), output_dim=self.action_space.n).to(self.device)
-        # locate & load the latest checkpoint
-        # ckpt_path = self._latest_ckpt(Path("checkpoints"))
-        ckpt_path = "./mario_net_23.chkpt"
+
+        ckpt_path = self._latest_ckpt(Path("checkpoints"))
         checkpoint = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(checkpoint["model"])
         self.net.eval()
         print(f"Loaded checkpoint: {ckpt_path}")
 
     def _latest_ckpt(self, base_dir: Path) -> Path:
-        """Walks checkpoints/<run‑timestamp>/*.chkpt and returns the highest-numbered file."""
         runs = sorted([d for d in base_dir.iterdir() if d.is_dir()])
         if not runs:
             raise FileNotFoundError(f"No run folders in {base_dir}")
         latest_run = runs[-1]
-        files = list(latest_run.glob("mario_net_*.chkpt"))
+        files = sorted(latest_run.glob("mario_net_*.chkpt"),
+                       key=lambda f: int(f.stem.split("_")[-1]))
         if not files:
             raise FileNotFoundError(f"No .chkpt files in {latest_run}")
-        files.sort(key=lambda f: int(f.stem.split("_")[-1]))
         return files[-1]
 
     def act(self, observation):
         """
-        Given a raw observation (LazyFrame, tensor, or array), 
-        preprocess, run through the online network, and return the argmax action.
+        Preprocess the incoming observation into a contiguous float32 tensor
+        and return the greedy action.
         """
-        # 1) get a numpy array of shape (4,84,84)
-        obs = observation.__array__() if hasattr(observation, "__array__") else np.array(observation)
-        # 2) build a torch batch (1,4,84,84)
+        # 1) pull out the raw (4×84×84) array
+        if hasattr(observation, "__array__"):
+            obs = observation.__array__()
+        else:
+            obs = np.array(observation)
+
+        # 2) ensure positive strides / C‑contiguous memory
+        obs = np.ascontiguousarray(obs)
+
+        # 3) convert to torch tensor and batch it
         state = torch.tensor(obs, dtype=torch.float32, device=self.device).unsqueeze(0)
-        # 3) forward & argmax
+
+        # 4) forward & argmax
         with torch.no_grad():
             q_vals = self.net(state, model="online")
-            action_idx = q_vals.argmax(dim=1).item()
-        return int(action_idx)
+            return int(q_vals.argmax(dim=1).item())
 
 def main():
-    # 1) build env with same wrappers as training
     env = gym_super_mario_bros.make('SuperMarioBros-v0')
     env = JoypadSpace(env, COMPLEX_MOVEMENT)
     env = SkipFrame(env, skip=4)
@@ -63,10 +65,8 @@ def main():
     env = ResizeObservation(env, shape=84)
     env = FrameStack(env, num_stack=4)
 
-    # 2) instantiate agent (loads model)
     agent = Agent()
 
-    # 3) run a single episode
     state = env.reset()
     done = False
     total_reward = 0.0
