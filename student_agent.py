@@ -3,104 +3,112 @@ import torch
 import numpy as np
 from pathlib import Path
 from collections import deque
-from PIL import Image
+
 from torchvision import transforms as T
 
 import gym_super_mario_bros
 from nes_py.wrappers import JoypadSpace
 from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
-from gym.wrappers import FrameStack
 
-# import network & wrappers from your training file
-from train import MarioNet, SkipFrame, GrayScaleObservation, ResizeObservation
+# import your network definition
+from train import MarioNet
 
 class Agent(object):
-    """Agent that loads a trained DQN and returns the argmax action."""
+    """Takes raw RGB frames, applies the same preprocessing as in training,
+    stacks 4 frames, and returns the greedy DQN action."""
     def __init__(self):
+        # action dim
         self.action_space = gym.spaces.Discrete(12)
-        # pick device
+
+        # device
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        # build network
+
+        # build net and load weights
         self.net = MarioNet(input_dim=(4, 84, 84), output_dim=self.action_space.n).to(self.device)
-        # locate & load the latest checkpoint
         # ckpt_path = self._latest_ckpt(Path("checkpoints"))
-        ckpt_path = "./mario_net_23.chkpt"
-        checkpoint = torch.load(ckpt_path, map_location=self.device)
+        ckpt = "./mario_net_23.chkpt"
+        checkpoint = torch.load(ckpt, map_location=self.device)
         self.net.load_state_dict(checkpoint["model"])
         self.net.eval()
-        print(f"Loaded checkpoint: {ckpt_path}")
+        print(f"[Agent] Loaded checkpoint: {ckpt}")
 
-        # preprocessing pipeline: RGB→PIL→grayscale(1ch)→84×84→Tensor([0,1])
+        # frame buffer & preprocess pipeline
+        self.buffer = deque(maxlen=4)
         self.transform = T.Compose([
-            T.ToPILImage(),  
+            T.ToPILImage(),                 # from H×W×C array
             T.Grayscale(num_output_channels=1),
             T.Resize((84, 84), antialias=True),
-            T.ToTensor(),    # gives float32 in [0,1]
+            T.ToTensor(),                   # scales to [0,1] and gives shape 1×84×84
         ])
-        # frame buffer for last 4 preprocess frames
-        self.frame_buffer = deque(maxlen=4)
 
     def _latest_ckpt(self, base_dir: Path) -> Path:
-        """Walks checkpoints/<run‑timestamp>/*.chkpt and returns the highest-numbered file."""
+        """Finds the highest‐numbered mario_net_*.chkpt under the most recent run dir."""
         runs = sorted([d for d in base_dir.iterdir() if d.is_dir()])
         if not runs:
             raise FileNotFoundError(f"No run folders in {base_dir}")
-        latest_run = runs[-1]
-        files = list(latest_run.glob("mario_net_*.chkpt"))
+        latest = runs[-1]
+        files = sorted(latest.glob("mario_net_*.chkpt"),
+                       key=lambda f: int(f.stem.split("_")[-1]))
         if not files:
-            raise FileNotFoundError(f"No .chkpt files in {latest_run}")
-        files.sort(key=lambda f: int(f.stem.split("_")[-1]))
+            raise FileNotFoundError(f"No .chkpt files in {latest}")
         return files[-1]
 
-    def act(self, raw_rgb: np.ndarray) -> int:
-        """
-        raw_rgb: HxWx3 uint8 frame from the unwrapped env.
-        Returns: int action in [0, 11].
-        """
-        # 1) make sure we have a C‑contiguous array
-        frame_np = np.ascontiguousarray(raw_rgb)
+    def _preprocess(self, frame: np.ndarray) -> np.ndarray:
+        """Grayscale, resize, normalize, returns a 84×84 float32 array."""
+        # transform → torch tensor 1×84×84
+        t = self.transform(frame)  
+        # squeeze channel, to numpy (84×84)
+        return t.squeeze(0).cpu().numpy()
 
-        # 2) grayscale + resize + to‐tensor([0,1])
-        frame_t  = self.transform(frame_np)       # shape [1,84,84]
+    def act(self, observation):
+        # raw env returns a (240×256×3) uint8 array
+        frame = observation if isinstance(observation, np.ndarray) else observation[0]
 
-        # 3) fill or append to our 4‑frame buffer
-        if len(self.frame_buffer) < 4:
-            # on very first call, replicate the first frame
-            while len(self.frame_buffer) < 4:
-                self.frame_buffer.append(frame_t)
-        self.frame_buffer.append(frame_t)
+        # preprocess & push into buffer
+        proc = self._preprocess(frame)
+        self.buffer.append(proc)
 
-        # 4) stack into a single tensor [1,4,84,84]
-        state = torch.cat(list(self.frame_buffer), dim=0) \
-                     .unsqueeze(0) \
-                     .to(self.device)   # [1,4,84,84]
+        # at start, pad with repeats of the first frame
+        if len(self.buffer) < 4:
+            while len(self.buffer) < 4:
+                self.buffer.append(proc)
 
-        # 5) forward + greedy
+        # stack into (4×84×84)
+        state = np.stack(self.buffer, axis=0)
+
+        # ensure C‐contiguous
+        state = np.ascontiguousarray(state)
+
+        # make batch 1×4×84×84
+        tensor = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
+
+        # forward & pick greedy
         with torch.no_grad():
-            q_vals = self.net(state, model="online")
-            action = int(q_vals.argmax(dim=1).item())
+            q = self.net(tensor, model="online")
+            return int(q.argmax(dim=1).item())
 
-        return action
 
 def main():
-    # only wrap for discrete action set (and optionally skip frames)
+    # 1) build *raw* env (no grayscale/resize/stack wrappers here)
     env = gym_super_mario_bros.make('SuperMarioBros-v0')
     env = JoypadSpace(env, COMPLEX_MOVEMENT)
-    env = SkipFrame(env, skip=4)
 
+    # 2) agent (loads model & sets up its own preproc)
     agent = Agent()
 
-    obs = env.reset()   # this is raw RGB now
+    # 3) play one episode
+    state = env.reset()
     done = False
     total_reward = 0.0
 
     while not done:
-        action = agent.act(obs)
-        obs, reward, done, info = env.step(action)
+        action = agent.act(state)
+        state, reward, done, info = env.step(action)
         total_reward += reward
 
-    print(f"Total accumulated reward: {total_reward:.2f}")
+    print(f"\n=== Episode finished! Total accumulated reward: {total_reward:.2f} ===")
     env.close()
+
 
 if __name__ == "__main__":
     main()
