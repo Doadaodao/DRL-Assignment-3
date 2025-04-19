@@ -15,24 +15,28 @@ class Agent(object):
     """Agent that loads a trained DQN and returns the argmax action."""
     def __init__(self):
         self.action_space = gym.spaces.Discrete(12)
+        # pick device
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # build network
         self.net = MarioNet(input_dim=(4, 84, 84), output_dim=self.action_space.n).to(self.device)
-
-        ckpt_path = self._latest_ckpt(Path("checkpoints"))
+        # locate & load the latest checkpoint
+        # ckpt_path = self._latest_ckpt(Path("checkpoints"))
+        ckpt_path = "./mario_net_23.chkpt"
         checkpoint = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(checkpoint["model"])
         self.net.eval()
         print(f"Loaded checkpoint: {ckpt_path}")
 
     def _latest_ckpt(self, base_dir: Path) -> Path:
+        """Walks checkpoints/<run‑timestamp>/*.chkpt and returns the highest-numbered file."""
         runs = sorted([d for d in base_dir.iterdir() if d.is_dir()])
         if not runs:
             raise FileNotFoundError(f"No run folders in {base_dir}")
         latest_run = runs[-1]
-        files = sorted(latest_run.glob("mario_net_*.chkpt"),
-                       key=lambda f: int(f.stem.split("_")[-1]))
+        files = list(latest_run.glob("mario_net_*.chkpt"))
         if not files:
             raise FileNotFoundError(f"No .chkpt files in {latest_run}")
+        files.sort(key=lambda f: int(f.stem.split("_")[-1]))
         return files[-1]
 
     def act(self, observation):
