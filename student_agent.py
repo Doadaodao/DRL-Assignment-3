@@ -2,6 +2,9 @@ import gym
 import torch
 import numpy as np
 from pathlib import Path
+from collections import deque
+from PIL import Image
+from torchvision import transforms as T
 
 import gym_super_mario_bros
 from nes_py.wrappers import JoypadSpace
@@ -27,6 +30,16 @@ class Agent(object):
         self.net.eval()
         print(f"Loaded checkpoint: {ckpt_path}")
 
+        # preprocessing pipeline: RGB→PIL→grayscale(1ch)→84×84→Tensor([0,1])
+        self.transform = T.Compose([
+            T.ToPILImage(),  
+            T.Grayscale(num_output_channels=1),
+            T.Resize((84, 84), antialias=True),
+            T.ToTensor(),    # gives float32 in [0,1]
+        ])
+        # frame buffer for last 4 preprocess frames
+        self.frame_buffer = deque(maxlen=4)
+
     def _latest_ckpt(self, base_dir: Path) -> Path:
         """Walks checkpoints/<run‑timestamp>/*.chkpt and returns the highest-numbered file."""
         runs = sorted([d for d in base_dir.iterdir() if d.is_dir()])
@@ -39,49 +52,54 @@ class Agent(object):
         files.sort(key=lambda f: int(f.stem.split("_")[-1]))
         return files[-1]
 
-    def act(self, observation):
+    def act(self, raw_rgb: np.ndarray) -> int:
         """
-        Preprocess the incoming observation into a contiguous float32 tensor
-        and return the greedy action.
+        raw_rgb: HxWx3 uint8 frame from the unwrapped env.
+        Returns: int action in [0, 11].
         """
-        # 1) pull out the raw (4×84×84) array
-        if hasattr(observation, "__array__"):
-            obs = observation.__array__()
-        else:
-            obs = np.array(observation)
+        # 1) make sure we have a C‑contiguous array
+        frame_np = np.ascontiguousarray(raw_rgb)
 
-        # 2) ensure positive strides / C‑contiguous memory
-        obs = np.ascontiguousarray(obs)
+        # 2) grayscale + resize + to‐tensor([0,1])
+        frame_t  = self.transform(frame_np)       # shape [1,84,84]
 
-        # 3) convert to torch tensor and batch it
-        state = torch.tensor(obs, dtype=torch.float32, device=self.device).unsqueeze(0)
+        # 3) fill or append to our 4‑frame buffer
+        if len(self.frame_buffer) < 4:
+            # on very first call, replicate the first frame
+            while len(self.frame_buffer) < 4:
+                self.frame_buffer.append(frame_t)
+        self.frame_buffer.append(frame_t)
 
-        # 4) forward & argmax
+        # 4) stack into a single tensor [1,4,84,84]
+        state = torch.cat(list(self.frame_buffer), dim=0) \
+                     .unsqueeze(0) \
+                     .to(self.device)   # [1,4,84,84]
+
+        # 5) forward + greedy
         with torch.no_grad():
             q_vals = self.net(state, model="online")
-            return int(q_vals.argmax(dim=1).item())
+            action = int(q_vals.argmax(dim=1).item())
+
+        return action
 
 def main():
+    # only wrap for discrete action set (and optionally skip frames)
     env = gym_super_mario_bros.make('SuperMarioBros-v0')
     env = JoypadSpace(env, COMPLEX_MOVEMENT)
     env = SkipFrame(env, skip=4)
-    env = GrayScaleObservation(env)
-    env = ResizeObservation(env, shape=84)
-    env = FrameStack(env, num_stack=4)
 
-    agent = Agent()
+    agent = Agent(checkpoint_dir="checkpoints")
 
-    state = env.reset()
+    obs = env.reset()   # this is raw RGB now
     done = False
     total_reward = 0.0
 
     while not done:
-        env.render()
-        action = agent.act(state)
-        state, reward, done, info = env.step(action)
+        action = agent.act(obs)
+        obs, reward, done, info = env.step(action)
         total_reward += reward
 
-    print(f"\n=== Episode finished! Total accumulated reward: {total_reward:.2f} ===")
+    print(f"Total accumulated reward: {total_reward:.2f}")
     env.close()
 
 if __name__ == "__main__":
