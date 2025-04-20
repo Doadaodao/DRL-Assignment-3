@@ -6,7 +6,7 @@ from pathlib import Path
 from torchvision import transforms as T
 
 # make sure your PYTHONPATH lets you import MarioNet from your train.py
-from train import MarioNet  
+from train import MarioNet, GrayScaleObservation, ResizeObservation
 
 class Agent(object):
     """Loads a trained MarioNet checkpoint and applies the same
@@ -53,7 +53,13 @@ class Agent(object):
         applies preprocessing + frame‑stack, then returns the
         argmax‑Q action from the online network.
         """
-        # 1) preprocess this single raw frame → 1×84×84 tensor
+        # env = gym_super_mario_bros.make('SuperMarioBros-v0')
+        # env = JoypadSpace(env, COMPLEX_MOVEMENT)
+
+        # # 1) preprocess this single raw frame → 1×84×84 tensor
+        # obs = GrayScaleObservation.observation(env, observation)
+        # obs = ResizeObservation.observation(env, obs)
+        # print(f"obs shape: {obs.shape}")
         processed = self.transform(observation).squeeze(0)
 
         # 2) initialize or update our 4‑frame buffer
@@ -79,18 +85,19 @@ import gym_super_mario_bros
 from nes_py.wrappers import JoypadSpace
 from gym_super_mario_bros.actions import COMPLEX_MOVEMENT 
 
-env = gym_super_mario_bros.make('SuperMarioBros-v0')
-env = JoypadSpace(env, COMPLEX_MOVEMENT)
+if __name__ == "__main__":
+    env = gym_super_mario_bros.make('SuperMarioBros-v0')
+    env = JoypadSpace(env, COMPLEX_MOVEMENT)
 
-agent = Agent()
-obs = env.reset()
-done = False
-total_reward = 0
+    agent = Agent()
+    obs = env.reset()
+    done = False
+    total_reward = 0
 
-while not done:
-    a = agent.act(obs)
-    obs, r, done, info = env.step(a)
-    total_reward += r
-    env.render()
+    while not done:
+        a = agent.act(obs)
+        obs, r, done, info = env.step(a)
+        total_reward += r
+        # env.render()
 
-print("Finished with reward:", total_reward)
+    print("Finished with reward:", total_reward)
