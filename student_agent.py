@@ -30,7 +30,8 @@ class Agent(object):
         self.net = MarioNet(input_dim=(4, 84, 84), output_dim=12).to(self.device)
 
         # ── load your checkpoint (edit this path!) ───────────────────────
-        ckpt_path = "./mario_net_23.chkpt"
+        # ckpt_path = "./checkpoints/2025-04-18T11-46-17/mario_net_20.chkpt"
+        ckpt_path = "./mario_net_20.chkpt"
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(ckpt["model"])
         self.net.eval()
@@ -138,7 +139,7 @@ if __name__ == "__main__":
         a = agent.act(obs)
         obs, r, done, info = env.step(a)
         total_reward += r
-        # print(f"Action: {a}, Reward: {r}, Done: {done}, Total Reward: {total_reward}")
+        print(f"Action: {a}, Reward: {r}, Done: {done}, Total Reward: {total_reward}")
         # env.render()
 
     print("Finished with reward:", total_reward)
