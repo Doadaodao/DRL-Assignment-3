@@ -6,12 +6,22 @@ from pathlib import Path
 from torchvision import transforms as T
 
 # make sure your PYTHONPATH lets you import MarioNet from your train.py
-from train import MarioNet, GrayScaleObservation, ResizeObservation
+from gym.spaces import Box
+from gym.wrappers import FrameStack
+
+# NES Emulator for OpenAI Gym
+from nes_py.wrappers import JoypadSpace
+
+# Super Mario environment for OpenAI Gym
+import gym_super_mario_bros
+from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
+
+from train import MarioNet, SkipFrame, GrayScaleObservation, ResizeObservation
 
 class Agent(object):
     """Loads a trained MarioNet checkpoint and applies the same
     SkipFrame/GrayScale/Resize/FrameStack pipeline in-act."""
-    def __init__(self):
+    def __init__(self, skip=4):
         # action space must match JoypadSpace(COMPLEX_MOVEMENT)
         self.action_space = gym.spaces.Discrete(12)
 
@@ -25,6 +35,20 @@ class Agent(object):
         self.net.load_state_dict(ckpt["model"])
         self.net.eval()
         # ─────────────────────────────────────────────────────────────────
+
+        env = gym_super_mario_bros.make('SuperMarioBros-v0')
+        env = JoypadSpace(env, COMPLEX_MOVEMENT)
+        env = SkipFrame(env, skip=4)
+        env = GrayScaleObservation(env)
+        env = ResizeObservation(env, shape=84)
+        env = FrameStack(env, num_stack=4)
+
+        self.sim_env = env
+        self.state = self.sim_env.reset()
+        self.step = 4
+        self.skip = skip
+        self.last_action = 0
+        self.done = False
 
         # build exactly the same transforms as in train.py:
         #   1) permute H×W×C → C×H×W, float tensor
@@ -45,7 +69,7 @@ class Agent(object):
         self.frame_stack = deque(maxlen=4)
         # placeholder for the last action (only needed if you wanted to
         # replicate SkipFrame's action‑repeat; you can ignore for testing)
-        self.last_action = 0
+        
 
     def act(self, observation):
         """
@@ -53,8 +77,20 @@ class Agent(object):
         applies preprocessing + frame‑stack, then returns the
         argmax‑Q action from the online network.
         """
-        # env = gym_super_mario_bros.make('SuperMarioBros-v0')
-        # env = JoypadSpace(env, COMPLEX_MOVEMENT)
+        if self.step % self.skip == 0:
+            state = self.state[0].__array__() if isinstance(self.state, tuple) else self.state.__array__()
+            state = torch.tensor(state, device=self.device).unsqueeze(0)
+            action_values = self.net(state, model="online")
+            action_idx = torch.argmax(action_values, axis=1).item()
+
+            self.last_action = action_idx
+            self.state, reward, self.done, info = self.sim_env.step(action_idx)
+            self.step += 1
+            return action_idx
+        else:
+            # self.state, reward, done, info = self.sim_env.step(self.last_action)
+            self.step += 1
+            return self.last_action
 
         # # 1) preprocess this single raw frame → 1×84×84 tensor
         # obs = GrayScaleObservation.observation(env, observation)
@@ -98,6 +134,7 @@ if __name__ == "__main__":
         a = agent.act(obs)
         obs, r, done, info = env.step(a)
         total_reward += r
+        print(f"Action: {a}, Reward: {r}, Done: {done}")
         # env.render()
 
     print("Finished with reward:", total_reward)
