@@ -21,7 +21,7 @@ from train import MarioNet, SkipFrame, GrayScaleObservation, ResizeObservation
 class Agent(object):
     """Loads a trained MarioNet checkpoint and applies the same
     SkipFrame/GrayScale/Resize/FrameStack pipeline in-act."""
-    def __init__(self, skip=4):
+    def __init__(self):
         # action space must match JoypadSpace(COMPLEX_MOVEMENT)
         self.action_space = gym.spaces.Discrete(12)
 
@@ -45,8 +45,8 @@ class Agent(object):
 
         self.sim_env = env
         self.state = self.sim_env.reset()
-        self.step = 4
-        self.skip = skip
+        self.step = 0
+        self.skip = 4
         self.last_action = 0
         self.done = False
 
@@ -88,7 +88,9 @@ class Agent(object):
                 self.state, reward, self.done, info = self.sim_env.step(action_idx)
                 self.step += 1
 
-            return action_idx
+                return action_idx
+            else:
+                return 9
         else:
             # self.state, reward, done, info = self.sim_env.step(self.last_action)
             self.step += 1
@@ -136,7 +138,7 @@ if __name__ == "__main__":
         a = agent.act(obs)
         obs, r, done, info = env.step(a)
         total_reward += r
-        # print(f"Action: {a}, Reward: {r}, Done: {done}")
+        # print(f"Action: {a}, Reward: {r}, Done: {done}, Total Reward: {total_reward}")
         # env.render()
 
     print("Finished with reward:", total_reward)
