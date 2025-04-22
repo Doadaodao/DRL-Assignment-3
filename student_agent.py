@@ -84,8 +84,10 @@ class Agent(object):
             action_idx = torch.argmax(action_values, axis=1).item()
 
             self.last_action = action_idx
-            self.state, reward, self.done, info = self.sim_env.step(action_idx)
-            self.step += 1
+            if not self.done:
+                self.state, reward, self.done, info = self.sim_env.step(action_idx)
+                self.step += 1
+
             return action_idx
         else:
             # self.state, reward, done, info = self.sim_env.step(self.last_action)
@@ -134,7 +136,7 @@ if __name__ == "__main__":
         a = agent.act(obs)
         obs, r, done, info = env.step(a)
         total_reward += r
-        print(f"Action: {a}, Reward: {r}, Done: {done}")
+        # print(f"Action: {a}, Reward: {r}, Done: {done}")
         # env.render()
 
     print("Finished with reward:", total_reward)
