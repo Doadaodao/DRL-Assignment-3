@@ -31,6 +31,7 @@ class Agent(object):
 
         # ── load your checkpoint (edit this path!) ───────────────────────
         ckpt_path = "./mario_net_20.chkpt"
+        # ckpt_path = "./checkpoints/2025-04-18T11-46-17/mario_net_23.chkpt"
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(ckpt["model"])
         self.net.eval()
@@ -142,17 +143,20 @@ if __name__ == "__main__":
 
     agent = Agent()
 
-    for i in range(2):
+    for i in range(1):
         obs = env.reset()
         done = False
         total_reward = 0
+        step_count = 0
 
         while not done:
             a = agent.act(obs)
             obs, r, done, info = env.step(a)
             total_reward += r
+            step_count += 1
+            print(f"Step: {step_count}, Action: {a}, Reward: {r}, Done: {done}, Total Reward: {total_reward}")
             # print(f"Action: {a}, Reward: {r}, Done: {done}, Total Reward: {total_reward}")
             # print(info["score"])
-            # env.render()
+            env.render()
 
         print("Finished with reward:", total_reward)
