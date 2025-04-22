@@ -30,8 +30,7 @@ class Agent(object):
         self.net = MarioNet(input_dim=(4, 84, 84), output_dim=12).to(self.device)
 
         # ── load your checkpoint (edit this path!) ───────────────────────
-        # ckpt_path = "./checkpoints/2025-04-18T11-46-17/mario_net_20.chkpt"
-        ckpt_path = "./mario_net_20.chkpt"
+        ckpt_path = "./mario_net_23.chkpt"
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(ckpt["model"])
         self.net.eval()
@@ -50,6 +49,11 @@ class Agent(object):
         self.skip = 4
         self.last_action = 0
         self.done = False
+
+        original_env = gym_super_mario_bros.make('SuperMarioBros-v0')
+        original_env = JoypadSpace(original_env, COMPLEX_MOVEMENT)
+        self.original_env = original_env
+        self.original_env.reset()
 
         # build exactly the same transforms as in train.py:
         #   1) permute H×W×C → C×H×W, float tensor
@@ -78,6 +82,13 @@ class Agent(object):
         applies preprocessing + frame‑stack, then returns the
         argmax‑Q action from the online network.
         """
+        if self.done:
+            self.state = self.sim_env.reset()
+            self.original_env.reset()
+            self.step = 0
+            self.done = False
+            self.last_action = 0
+
         if self.step % self.skip == 0:
             state = self.state[0].__array__() if isinstance(self.state, tuple) else self.state.__array__()
             state = torch.tensor(state, device=self.device).unsqueeze(0)
@@ -85,15 +96,14 @@ class Agent(object):
             action_idx = torch.argmax(action_values, axis=1).item()
 
             self.last_action = action_idx
-            if not self.done:
-                self.state, reward, self.done, info = self.sim_env.step(action_idx)
-                self.step += 1
-
-                return action_idx
-            else:
-                return 9
+            
+            self.state, _, _, _ = self.sim_env.step(action_idx)
+            _, _, self.done, _ = self.original_env.step(action_idx)
+            self.step += 1
+            return action_idx
         else:
             # self.state, reward, done, info = self.sim_env.step(self.last_action)
+            _, _, self.done, _ = self.original_env.step(self.last_action)
             self.step += 1
             return self.last_action
 
@@ -131,15 +141,18 @@ if __name__ == "__main__":
     env = JoypadSpace(env, COMPLEX_MOVEMENT)
 
     agent = Agent()
-    obs = env.reset()
-    done = False
-    total_reward = 0
 
-    while not done:
-        a = agent.act(obs)
-        obs, r, done, info = env.step(a)
-        total_reward += r
-        print(f"Action: {a}, Reward: {r}, Done: {done}, Total Reward: {total_reward}")
-        # env.render()
+    for i in range(2):
+        obs = env.reset()
+        done = False
+        total_reward = 0
 
-    print("Finished with reward:", total_reward)
+        while not done:
+            a = agent.act(obs)
+            obs, r, done, info = env.step(a)
+            total_reward += r
+            # print(f"Action: {a}, Reward: {r}, Done: {done}, Total Reward: {total_reward}")
+            # print(info["score"])
+            # env.render()
+
+        print("Finished with reward:", total_reward)
