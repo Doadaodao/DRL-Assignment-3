@@ -50,7 +50,7 @@ class Agent(object):
 
         # ── load your checkpoint (edit this path!) ───────────────────────
         ckpt_path = "./mario_net_20.chkpt"
-        # ckpt_path = "./checkpoints/2025-04-18T11-46-17/mario_net_23.chkpt"
+        # ckpt_path = "./checkpoints/2025-04-22T14-16-27/mario_net_15.chkpt"
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(ckpt["model"])
         self.net.eval()
@@ -88,7 +88,7 @@ class Agent(object):
                 self.frame_stack.append(obs)
 
             stacked_frame = torch.stack(list(self.frame_stack), dim=0).unsqueeze(0).to(self.device)
-            state = stacked_frame[0].numpy()
+            state = stacked_frame[0].cpu().numpy()
             state = torch.tensor(state, device=self.device).unsqueeze(0)
             action_values = self.net(state, model="online")
             action_idx = torch.argmax(action_values, axis=1).item()
@@ -119,7 +119,7 @@ if __name__ == "__main__":
             obs, r, done, info = env.step(a)
             total_reward += r
             step_count += 1
-            # print(f"Step: {step_count}, Action: {a}, Reward: {r}, Done: {done}, Total Reward: {total_reward}")
-            # env.render()
+            print(f"Step: {step_count}, Action: {a}, Reward: {r}, Done: {done}, Total Reward: {total_reward}")
+            env.render()
 
         print("Finished with reward:", total_reward)
