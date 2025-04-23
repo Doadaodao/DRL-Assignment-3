@@ -135,14 +135,15 @@ class MarioAgent:
         self.net = self.net.to(device=self.device)
 
         # ── load your checkpoint (edit this path!) ───────────────────────
-        # ckpt_path = "./mario_net_23.chkpt"
+        # # ckpt_path = "./mario_net_23.chkpt"
+        ckpt_path = "./checkpoints/2025-04-18T11-46-17/mario_net_23.chkpt"
         ckpt_path = "./checkpoints/2025-04-18T11-46-17/mario_net_23.chkpt"
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(ckpt["model"])
 
         # ─────────────────────────────────────────────────────────────────
-        self.exploration_rate = ckpt["exploration_rate"]
-        self.exploration_rate = 0.3
+
+        self.exploration_rate = 1
         self.exploration_rate_decay = 0.9999999
         self.exploration_rate_min = 0.01
         self.curr_step = 0
