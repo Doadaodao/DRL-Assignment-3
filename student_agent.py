@@ -101,7 +101,7 @@ class Agent(object):
         else:
             self.step += 1
             # epsilon greedy
-            if np.random.rand() < 0.01:
+            if np.random.rand() < 0.005:
                 action_idx = self.action_space.sample()
             else:
                 action_idx = self.last_action
