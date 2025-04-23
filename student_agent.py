@@ -16,7 +16,26 @@ from nes_py.wrappers import JoypadSpace
 import gym_super_mario_bros
 from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
 
-from train import MarioNet, SkipFrame, GrayScaleObservation, ResizeObservation
+from train import MarioNet
+
+def permute_orientation(observation):
+    # permute [H, W, C] array to [C, H, W] tensor
+    observation = np.transpose(observation, (2, 0, 1))
+    observation = torch.tensor(observation.copy(), dtype=torch.float)
+    return observation
+
+def greyscale(observation):
+    observation = permute_orientation(observation)
+    transform = T.Grayscale()
+    observation = transform(observation)
+    return observation
+
+def resize(observation, shape):
+    transforms = T.Compose(
+        [T.Resize(shape, antialias=True), T.Normalize(0, 255)]
+    )
+    observation = transforms(observation).squeeze(0)
+    return observation
 
 class Agent(object):
     """Loads a trained MarioNet checkpoint and applies the same
@@ -37,44 +56,13 @@ class Agent(object):
         self.net.eval()
         # ─────────────────────────────────────────────────────────────────
 
-        env = gym_super_mario_bros.make('SuperMarioBros-v0')
-        env = JoypadSpace(env, COMPLEX_MOVEMENT)
-        env = SkipFrame(env, skip=4)
-        env = GrayScaleObservation(env)
-        env = ResizeObservation(env, shape=84)
-        env = FrameStack(env, num_stack=4)
-
-        self.sim_env = env
-        self.state = self.sim_env.reset()
         self.step = 0
         self.skip = 4
         self.last_action = 0
         self.done = False
 
-        original_env = gym_super_mario_bros.make('SuperMarioBros-v0')
-        original_env = JoypadSpace(original_env, COMPLEX_MOVEMENT)
-        self.original_env = original_env
-        self.original_env.reset()
-
-        # build exactly the same transforms as in train.py:
-        #   1) permute H×W×C → C×H×W, float tensor
-        #   2) grayscale
-        #   3) resize to 84×84 (antialias)
-        #   4) normalize 0–255 → 0–1
-        self.transform = T.Compose([
-            T.Lambda(lambda img: torch.tensor(
-                np.transpose(img, (2, 0, 1)).copy(),
-                dtype=torch.float
-            )),
-            T.Grayscale(),
-            T.Resize((84, 84), antialias=True),
-            T.Normalize(0, 255),
-        ])
-
         # a deque to hold our 4-frame stack
         self.frame_stack = deque(maxlen=4)
-        # placeholder for the last action (only needed if you wanted to
-        # replicate SkipFrame's action‑repeat; you can ignore for testing)
         
 
     def act(self, observation):
@@ -83,59 +71,36 @@ class Agent(object):
         applies preprocessing + frame‑stack, then returns the
         argmax‑Q action from the online network.
         """
+       
+        obs = greyscale(observation)
+        obs = resize(obs, (84, 84))
+
         if self.done:
-            self.state = self.sim_env.reset()
-            self.original_env.reset()
             self.step = 0
             self.done = False
             self.last_action = 0
 
         if self.step % self.skip == 0:
-            state = self.state[0].__array__() if isinstance(self.state, tuple) else self.state.__array__()
+            if len(self.frame_stack) < 4:
+                for _ in range(4):
+                    self.frame_stack.append(obs)
+            else:
+                self.frame_stack.append(obs)
+
+            stacked_frame = torch.stack(list(self.frame_stack), dim=0).unsqueeze(0).to(self.device)
+            state = stacked_frame[0].numpy()
             state = torch.tensor(state, device=self.device).unsqueeze(0)
             action_values = self.net(state, model="online")
             action_idx = torch.argmax(action_values, axis=1).item()
+            # print(f"Simulated State: {state}")
+            # print(f"Shape of Simulated State: {state.shape}")
 
             self.last_action = action_idx
-            
-            self.state, _, _, _ = self.sim_env.step(action_idx)
-            _, _, self.done, _ = self.original_env.step(action_idx)
             self.step += 1
             return action_idx
         else:
-            # self.state, reward, done, info = self.sim_env.step(self.last_action)
-            _, _, self.done, _ = self.original_env.step(self.last_action)
             self.step += 1
             return self.last_action
-
-        # # 1) preprocess this single raw frame → 1×84×84 tensor
-        # obs = GrayScaleObservation.observation(env, observation)
-        # obs = ResizeObservation.observation(env, obs)
-        # print(f"obs shape: {obs.shape}")
-        processed = self.transform(observation).squeeze(0)
-
-        # 2) initialize or update our 4‑frame buffer
-        if len(self.frame_stack) < 4:
-            # on cold start, fill with the same first frame
-            for _ in range(4):
-                self.frame_stack.append(processed)
-        else:
-            self.frame_stack.append(processed)
-
-        # 3) build a [1,4,84,84] batch and run the network
-        state = torch.stack(list(self.frame_stack), dim=0) \
-                     .unsqueeze(0) \
-                     .to(self.device)
-
-        with torch.no_grad():
-            q_vals = self.net(state, model="online")
-
-        action = torch.argmax(q_vals, dim=1).item()
-        return action
-
-import gym_super_mario_bros
-from nes_py.wrappers import JoypadSpace
-from gym_super_mario_bros.actions import COMPLEX_MOVEMENT 
 
 if __name__ == "__main__":
     env = gym_super_mario_bros.make('SuperMarioBros-v0')
@@ -154,9 +119,7 @@ if __name__ == "__main__":
             obs, r, done, info = env.step(a)
             total_reward += r
             step_count += 1
-            print(f"Step: {step_count}, Action: {a}, Reward: {r}, Done: {done}, Total Reward: {total_reward}")
-            # print(f"Action: {a}, Reward: {r}, Done: {done}, Total Reward: {total_reward}")
-            # print(info["score"])
-            env.render()
+            # print(f"Step: {step_count}, Action: {a}, Reward: {r}, Done: {done}, Total Reward: {total_reward}")
+            # env.render()
 
         print("Finished with reward:", total_reward)
