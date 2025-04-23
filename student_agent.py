@@ -49,7 +49,7 @@ class Agent(object):
         self.net = MarioNet(input_dim=(4, 84, 84), output_dim=12).to(self.device)
 
         # ── load your checkpoint (edit this path!) ───────────────────────
-        ckpt_path = "./mario_net_23.chkpt"
+        ckpt_path = "./mario_net_15.chkpt"
         # ckpt_path = "./checkpoints/2025-04-22T14-16-27/mario_net_15.chkpt"
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(ckpt["model"])
