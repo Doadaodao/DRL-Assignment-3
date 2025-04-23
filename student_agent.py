@@ -49,7 +49,7 @@ class Agent(object):
         self.net = MarioNet(input_dim=(4, 84, 84), output_dim=12).to(self.device)
 
         # ── load your checkpoint (edit this path!) ───────────────────────
-        ckpt_path = "./mario_net_20.chkpt"
+        ckpt_path = "./mario_net_23.chkpt"
         # ckpt_path = "./checkpoints/2025-04-22T14-16-27/mario_net_15.chkpt"
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(ckpt["model"])
@@ -100,7 +100,13 @@ class Agent(object):
             return action_idx
         else:
             self.step += 1
-            return self.last_action
+            # epsilon greedy
+            if np.random.rand() < 0.01:
+                action_idx = self.action_space.sample()
+            else:
+                action_idx = self.last_action
+            self.last_action = action_idx
+            return action_idx
 
 if __name__ == "__main__":
     env = gym_super_mario_bros.make('SuperMarioBros-v0')
@@ -115,11 +121,14 @@ if __name__ == "__main__":
         step_count = 0
 
         while not done:
-            a = agent.act(obs)
+            if step_count < 4:
+                a = env.action_space.sample()
+            else:
+                a = agent.act(obs)
             obs, r, done, info = env.step(a)
             total_reward += r
             step_count += 1
             print(f"Step: {step_count}, Action: {a}, Reward: {r}, Done: {done}, Total Reward: {total_reward}")
-            env.render()
+            # env.render()
 
         print("Finished with reward:", total_reward)

@@ -100,7 +100,13 @@ class Agent(object):
             return action_idx
         else:
             self.step += 1
-            return self.last_action
+            # epsilon greedy
+            if np.random.rand() < 0.01:
+                action_idx = self.action_space.sample()
+            else:
+                action_idx = self.last_action
+            self.last_action = action_idx
+            return action_idx
 
 if __name__ == "__main__":
     env = gym_super_mario_bros.make('SuperMarioBros-v0')
