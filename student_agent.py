@@ -61,6 +61,8 @@ class Agent(object):
         self.last_action = 0
         self.done = False
 
+        self.epsilon = 0.007
+
         # a deque to hold our 4-frame stack
         self.frame_stack = deque(maxlen=4)
         
@@ -101,7 +103,7 @@ class Agent(object):
         else:
             self.step += 1
             # epsilon greedy
-            if np.random.rand() < 0.005:
+            if np.random.rand() < self.epsilon:
                 action_idx = self.action_space.sample()
             else:
                 action_idx = self.last_action
@@ -112,9 +114,11 @@ if __name__ == "__main__":
     env = gym_super_mario_bros.make('SuperMarioBros-v0')
     env = JoypadSpace(env, COMPLEX_MOVEMENT)
 
-    agent = Agent()
+   
+    scores = []
 
-    for i in range(1):
+    for i in range(5):
+        agent = Agent()
         obs = env.reset()
         done = False
         total_reward = 0
@@ -128,7 +132,9 @@ if __name__ == "__main__":
             obs, r, done, info = env.step(a)
             total_reward += r
             step_count += 1
-            print(f"Step: {step_count}, Action: {a}, Reward: {r}, Done: {done}, Total Reward: {total_reward}")
+            # print(f"Step: {step_count}, Action: {a}, Reward: {r}, Done: {done}, Total Reward: {total_reward}")
             # env.render()
+        scores.append(total_reward)
 
         print("Finished with reward:", total_reward)
+    print("Average score:", np.mean(scores))
