@@ -50,8 +50,8 @@ class Agent(object):
 
         # ── load your checkpoint (edit this path!) ───────────────────────
         ckpt_path = "./mario_net_23.chkpt"
-        # ckpt_path = "./checkpoints/2025-04-22T14-16-27/mario_net_23.chkpt"
-        # ckpt_path = "./checkpoints/2025-04-22T15-01-10/mario_net_26.chkpt"
+        ckpt_path = "./checkpoints/2025-04-22T14-16-27/mario_net_23.chkpt"
+        ckpt_path = "./checkpoints/2025-04-22T15-01-10/mario_net_33.chkpt"
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(ckpt["model"])
         self.net.eval()
@@ -102,7 +102,7 @@ class Agent(object):
         else:
             self.step += 1
             # epsilon greedy
-            if np.random.rand() < 0.005:
+            if np.random.rand() < 0.01:
                 action_idx = self.action_space.sample()
             else:
                 action_idx = self.last_action
