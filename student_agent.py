@@ -49,9 +49,10 @@ class Agent(object):
         self.net = MarioNet(input_dim=(4, 84, 84), output_dim=12).to(self.device)
 
         # ── load your checkpoint (edit this path!) ───────────────────────
-        ckpt_path = "./mario_net_23.chkpt"
-        ckpt_path = "./checkpoints/2025-04-22T14-16-27/mario_net_23.chkpt"
-        ckpt_path = "./checkpoints/2025-04-22T15-01-10/mario_net_33.chkpt"
+        ckpt_path = "./mario_net_31.chkpt"
+        # ckpt_path = "./checkpoints/2025-04-22T14-16-27/mario_net_31.chkpt"
+        # ckpt_path = "./checkpoints/2025-04-22T15-01-10/mario_net_33.chkpt"
+        # ckpt_path = "./checkpoints/2025-04-24T01-50-56/mario_net_33.chkpt"
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(ckpt["model"])
         self.net.eval()
@@ -62,7 +63,7 @@ class Agent(object):
         self.last_action = 0
         self.done = False
 
-        self.epsilon = 0.007
+        self.epsilon = 0.003
 
         # a deque to hold our 4-frame stack
         self.frame_stack = deque(maxlen=4)
