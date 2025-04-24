@@ -50,7 +50,8 @@ class Agent(object):
 
         # ── load your checkpoint (edit this path!) ───────────────────────
         ckpt_path = "./mario_net_23.chkpt"
-        # ckpt_path = "./checkpoints/2025-04-22T14-16-27/mario_net_15.chkpt"
+        # ckpt_path = "./checkpoints/2025-04-22T14-16-27/mario_net_23.chkpt"
+        # ckpt_path = "./checkpoints/2025-04-22T15-01-10/mario_net_26.chkpt"
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(ckpt["model"])
         self.net.eval()
@@ -125,7 +126,7 @@ if __name__ == "__main__":
         step_count = 0
 
         while not done:
-            if step_count < 4:
+            if step_count < 0:
                 a = env.action_space.sample()
             else:
                 a = agent.act(obs)
