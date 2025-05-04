@@ -13,7 +13,7 @@ from nes_py.wrappers import JoypadSpace
 import gym_super_mario_bros
 from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
 
-from train import MarioNet
+from agent import MarioNet
 
 def permute_orientation(observation):
     # permute [H, W, C] array to [C, H, W] tensor
