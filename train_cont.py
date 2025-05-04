@@ -135,8 +135,8 @@ class MarioAgent:
         self.net = self.net.to(device=self.device)
 
         # ── load your checkpoint (edit this path!) ───────────────────────
-        # ckpt_path = "./mario_net_23.chkpt"
-        ckpt_path = "./checkpoints/2025-04-18T11-46-17/mario_net_23.chkpt"
+        ckpt_path = "./mario_net_16.chkpt"
+        # ckpt_path = "./checkpoints/2025-04-18T11-46-17/mario_net_23.chkpt"
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(ckpt["model"])
 
