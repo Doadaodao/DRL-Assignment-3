@@ -50,9 +50,10 @@ class Agent(object):
 
         # ── load your checkpoint (edit this path!) ───────────────────────
         ckpt_path = "./mario_net_31.chkpt"
-        # ckpt_path = "./checkpoints/2025-04-22T14-16-27/mario_net_31.chkpt"
-        # ckpt_path = "./checkpoints/2025-04-22T15-01-10/mario_net_33.chkpt"
-        # ckpt_path = "./checkpoints/2025-04-24T01-50-56/mario_net_33.chkpt"
+        ckpt_path = "./checkpoints/2025-04-22T14-16-27/mario_net_65.chkpt"
+        ckpt_path = "./checkpoints/2025-04-22T15-01-10/mario_net_92.chkpt"
+        # ckpt_path = "./checkpoints/2025-04-27T01-01-37/mario_net_3.chkpt"
+        ckpt_path = "./checkpoints/2025-04-29T00-48-10/mario_net_16.chkpt"
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(ckpt["model"])
         self.net.eval()
@@ -63,7 +64,7 @@ class Agent(object):
         self.last_action = 0
         self.done = False
 
-        self.epsilon = 0.003
+        self.epsilon = 0.0005
 
         # a deque to hold our 4-frame stack
         self.frame_stack = deque(maxlen=4)
@@ -101,6 +102,8 @@ class Agent(object):
 
             self.last_action = action_idx
             self.step += 1
+            if np.random.rand() < self.epsilon:
+                action_idx = self.action_space.sample()
             return action_idx
         else:
             self.step += 1
@@ -110,15 +113,17 @@ class Agent(object):
                 action_idx = self.action_space.sample()
             else:
                 action_idx = self.last_action
+            action_idx = self.last_action
             self.last_action = action_idx
             return action_idx
 
 if __name__ == "__main__":
     env = gym_super_mario_bros.make('SuperMarioBros-v0')
+    # env = gym_super_mario_bros.make('SuperMarioBros-1-2-v0')
     env = JoypadSpace(env, COMPLEX_MOVEMENT)
 
     scores = []
-    for i in range(5):
+    for i in range(20):
         agent = Agent()
         obs = env.reset()
         done = False
@@ -126,7 +131,7 @@ if __name__ == "__main__":
         step_count = 0
 
         while not done:
-            if step_count < 0:
+            if step_count < 4: 
                 a = env.action_space.sample()
             else:
                 a = agent.act(obs)
@@ -134,7 +139,7 @@ if __name__ == "__main__":
             total_reward += r
             step_count += 1
             # print(f"Step: {step_count}, Action: {a}, Reward: {r}, Done: {done}, Total Reward: {total_reward}")
-            # env.render()
+            env.render()
         scores.append(total_reward)
 
         print("Finished with reward:", total_reward)
