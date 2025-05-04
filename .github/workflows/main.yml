@@ -33,6 +33,7 @@ jobs:
         pip install gdown
         gdown --fuzzy 'https://drive.google.com/file/d/1WUvMnypB5SykF_NCDjmo5bxSrbW3h9lQ/view?usp=drive_link'
         gdown --fuzzy 'https://drive.google.com/file/d/1jRaAZJVRVghlbKELzdd-sEE3tE-Rhf_d/view?usp=drive_link'
+        gdown --fuzzy 'https://drive.google.com/file/d/1s2LLnioJ7icMRruckY-kgGXChNHkC0EK/view?usp=sharing'
         
 
     - name: 3. Ensure env.so is executable

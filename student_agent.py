@@ -46,8 +46,8 @@ class Agent(object):
         self.net = MarioNet(input_dim=(4, 84, 84), output_dim=12).to(self.device)
 
         # load checkpoint
-        ckpt_path = "./checkpoints/2025-04-29T00-48-10/mario_net_16.chkpt"
-        ckpt_path = "./mario_net_16.chkpt"
+        ckpt_path = "./checkpoints/2025-04-29T00-48-10/mario_net_55.chkpt"
+        ckpt_path = "./mario_net_55.chkpt"
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(ckpt["model"])
         self.net.eval()
@@ -57,7 +57,7 @@ class Agent(object):
         self.last_action = 0
         self.done = False
 
-        self.epsilon = 0.0005
+        self.epsilon = 0.005
 
         self.frame_stack = deque(maxlen=4)
         
@@ -106,7 +106,7 @@ if __name__ == "__main__":
     env = JoypadSpace(env, COMPLEX_MOVEMENT)
 
     scores = []
-    for i in range(20):
+    for i in range(5):
         agent = Agent()
         obs = env.reset()
         done = False
