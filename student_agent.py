@@ -5,14 +5,11 @@ from collections import deque
 from pathlib import Path
 from torchvision import transforms as T
 
-# make sure your PYTHONPATH lets you import MarioNet from your train.py
 from gym.spaces import Box
 from gym.wrappers import FrameStack
 
-# NES Emulator for OpenAI Gym
-from nes_py.wrappers import JoypadSpace
 
-# Super Mario environment for OpenAI Gym
+from nes_py.wrappers import JoypadSpace
 import gym_super_mario_bros
 from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
 
@@ -48,16 +45,12 @@ class Agent(object):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.net = MarioNet(input_dim=(4, 84, 84), output_dim=12).to(self.device)
 
-        # ── load your checkpoint (edit this path!) ───────────────────────
-        ckpt_path = "./mario_net_31.chkpt"
-        ckpt_path = "./checkpoints/2025-04-22T14-16-27/mario_net_65.chkpt"
-        ckpt_path = "./checkpoints/2025-04-22T15-01-10/mario_net_92.chkpt"
-        # ckpt_path = "./checkpoints/2025-04-27T01-01-37/mario_net_3.chkpt"
+        # load checkpoint
         ckpt_path = "./checkpoints/2025-04-29T00-48-10/mario_net_16.chkpt"
+        ckpt_path = "./mario_net_16.chkpt"
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(ckpt["model"])
         self.net.eval()
-        # ─────────────────────────────────────────────────────────────────
 
         self.step = 0
         self.skip = 4
@@ -66,7 +59,6 @@ class Agent(object):
 
         self.epsilon = 0.0005
 
-        # a deque to hold our 4-frame stack
         self.frame_stack = deque(maxlen=4)
         
 
@@ -97,29 +89,20 @@ class Agent(object):
             state = torch.tensor(state, device=self.device).unsqueeze(0)
             action_values = self.net(state, model="online")
             action_idx = torch.argmax(action_values, axis=1).item()
-            # print(f"Simulated State: {state}")
-            # print(f"Shape of Simulated State: {state.shape}")
 
             self.last_action = action_idx
             self.step += 1
+
+            # epsilon greedy
             if np.random.rand() < self.epsilon:
                 action_idx = self.action_space.sample()
             return action_idx
         else:
             self.step += 1
-            # epsilon greedy
-            
-            if np.random.rand() < self.epsilon:
-                action_idx = self.action_space.sample()
-            else:
-                action_idx = self.last_action
-            action_idx = self.last_action
-            self.last_action = action_idx
-            return action_idx
+            return self.last_action
 
 if __name__ == "__main__":
     env = gym_super_mario_bros.make('SuperMarioBros-v0')
-    # env = gym_super_mario_bros.make('SuperMarioBros-1-2-v0')
     env = JoypadSpace(env, COMPLEX_MOVEMENT)
 
     scores = []
