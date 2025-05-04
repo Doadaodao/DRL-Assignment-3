@@ -135,15 +135,16 @@ class MarioAgent:
         self.net = self.net.to(device=self.device)
 
         # ── load your checkpoint (edit this path!) ───────────────────────
-        ckpt_path = "./checkpoints/2025-04-22T15-01-10/mario_net_92.chkpt"
+        # ckpt_path = "./mario_net_23.chkpt"
+        ckpt_path = "./checkpoints/2025-04-18T11-46-17/mario_net_23.chkpt"
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(ckpt["model"])
 
         # ─────────────────────────────────────────────────────────────────
-
-        self.exploration_rate = 0.01
+        self.exploration_rate = ckpt["exploration_rate"]
+        self.exploration_rate = 0.3
         self.exploration_rate_decay = 0.9999999
-        self.exploration_rate_min = 0.005
+        self.exploration_rate_min = 0.01
         self.curr_step = 0
 
         self.save_every = 5e5  # no. of experiences between saving Mario Net
@@ -157,7 +158,7 @@ class MarioAgent:
         self.learn_every = 3  # no. of experiences between updates to Q_online
         self.sync_every = 1e4  # no. of experiences between Q_target & Q_online sync
 
-        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.00005)
+        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.0001)
         self.loss_fn = torch.nn.SmoothL1Loss()
 
     def act(self, state):
@@ -436,7 +437,7 @@ if __name__ == "__main__":
             state = next_state
 
             # Check if end of game
-            if done:
+            if done: 
                 break
 
         logger.log_episode()
