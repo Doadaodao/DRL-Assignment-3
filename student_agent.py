@@ -58,7 +58,7 @@ class Agent(object):
         self.last_action = 0
         self.done = False
 
-        self.epsilon = 0.0005
+        self.epsilon = 0.0001
 
         self.frame_stack = deque(maxlen=4)
         
