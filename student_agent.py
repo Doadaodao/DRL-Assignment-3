@@ -43,7 +43,7 @@ class Agent(object):
         # load checkpoint
         ckpt_path = "./checkpoints/2025-04-29T00-48-10/mario_net_55.chkpt"
         ckpt_path = "./checkpoints/2025-05-04T19-16-53/mario_net_8.chkpt"
-        ckpt_path = "./mario_net_8.chkpt"
+        ckpt_path = "./mario_net_5.chkpt"
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(ckpt["model"])
         self.net.eval()
