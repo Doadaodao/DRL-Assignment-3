@@ -31,10 +31,7 @@ jobs:
     - name: Download from Google Drive
       run: |
         pip install gdown
-        gdown --fuzzy 'https://drive.google.com/file/d/1WUvMnypB5SykF_NCDjmo5bxSrbW3h9lQ/view?usp=drive_link'
-        gdown --fuzzy 'https://drive.google.com/file/d/1jRaAZJVRVghlbKELzdd-sEE3tE-Rhf_d/view?usp=drive_link'
-        gdown --fuzzy 'https://drive.google.com/file/d/1s2LLnioJ7icMRruckY-kgGXChNHkC0EK/view?usp=sharing'
-        gdown --fuzzy 'https://drive.google.com/file/d/1kzMnEpzRmw235Od7vs1CEzLrryv7RaKj/view?usp=sharing'
+        gdown --fuzzy 'https://drive.google.com/file/d/1sy0s-lBF5OnWBv_UVKbAPhF1b2_8nhFF/view?usp=sharing'
 
     - name: 3. Ensure env.so is executable
       run: chmod +x eval.cpython-38-x86_64-linux-gnu.so
