@@ -41,8 +41,8 @@ class Agent(object):
         self.net = MarioNet(input_dim=(4, 84, 84), output_dim=12).to(self.device)
 
         # load checkpoint
-        ckpt_path = "./checkpoints/2025-04-29T00-48-10/mario_net_55.chkpt"
-        ckpt_path = "./checkpoints/2025-05-04T19-16-53/mario_net_8.chkpt"
+        ckpt_path = "./checkpoints/2025-05-05T21-19-09/mario_net_5.chkpt"
+        # ckpt_path = "./checkpoints/2025-05-04T19-16-53/mario_net_8.chkpt"
         ckpt_path = "./mario_net_5.chkpt"
         ckpt = torch.load(ckpt_path, map_location=self.device)
         self.net.load_state_dict(ckpt["model"])
@@ -53,7 +53,7 @@ class Agent(object):
         self.last_action = 0
         self.done = False
 
-        self.epsilon = 0.0001
+        self.epsilon = 0
 
         self.frame_stack = deque(maxlen=4)
         
