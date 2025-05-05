@@ -2,37 +2,32 @@ import gym
 import torch
 import numpy as np
 from collections import deque
-from pathlib import Path
 from torchvision import transforms as T
-
-from gym.spaces import Box
-from gym.wrappers import FrameStack
-
-
 from nes_py.wrappers import JoypadSpace
 import gym_super_mario_bros
 from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
-
 from agent import MarioNet
 
-def permute_orientation(observation):
-    # permute [H, W, C] array to [C, H, W] tensor
-    observation = np.transpose(observation, (2, 0, 1))
-    observation = torch.tensor(observation.copy(), dtype=torch.float)
-    return observation
-
-def greyscale(observation):
-    observation = permute_orientation(observation)
-    transform = T.Grayscale()
-    observation = transform(observation)
-    return observation
-
-def resize(observation, shape):
-    transforms = T.Compose(
-        [T.Resize(shape, antialias=True), T.Normalize(0, 255)]
-    )
-    observation = transforms(observation).squeeze(0)
-    return observation
+def transform(observation):
+    def permute_orientation(observation):
+        observation = np.transpose(observation, (2, 0, 1))
+        observation = torch.tensor(observation.copy(), dtype=torch.float)
+        return observation
+    def greyscale(observation):
+        observation = permute_orientation(observation)
+        transform = T.Grayscale()
+        observation = transform(observation)
+        return observation
+    def resize(observation, shape):
+        transforms = T.Compose(
+            [T.Resize(shape, antialias=True), T.Normalize(0, 255)]
+        )
+        observation = transforms(observation).squeeze(0)
+        return observation
+    
+    obs = greyscale(observation)
+    obs = resize(obs, (84, 84))
+    return obs
 
 class Agent(object):
     """Loads a trained MarioNet checkpoint and applies the same
@@ -70,13 +65,7 @@ class Agent(object):
         argmax‑Q action from the online network.
         """
        
-        obs = greyscale(observation)
-        obs = resize(obs, (84, 84))
-
-        if self.done:
-            self.step = 0
-            self.done = False
-            self.last_action = 0
+        obs = transform(observation)
 
         if self.step % self.skip == 0:
             if len(self.frame_stack) < 4:
@@ -123,7 +112,7 @@ if __name__ == "__main__":
             total_reward += r
             step_count += 1
             # print(f"Step: {step_count}, Action: {a}, Reward: {r}, Done: {done}, Total Reward: {total_reward}")
-            env.render()
+            # env.render()
         scores.append(total_reward)
 
         print("Finished with reward:", total_reward)
